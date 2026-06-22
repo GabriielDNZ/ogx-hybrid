@@ -162,14 +162,16 @@ static bool init()
     return true;
 } 
 
-static uint16_t open(uint8_t daddr, uint8_t rhport, const tusb_desc_interface_t* desc_itf, uint16_t max_len) {
-    // ... código interno mantido exatamente igual ...
-    
-    // Onde tiver "return false;", mude para:
-    // return 0;
-    
-    // Onde tiver "return true;", mude para o tamanho total processado:
-    return desc_itf->bLength; 
+static uint16_t open(uint8_t dev_addr, const tusb_desc_interface_t* desc_itf, uint16_t max_len) {
+    // 1. Verificações iniciais da TinyUSB utilizando as macros internas
+    TU_VERIFY(desc_itf->bNumEndpoints > 0);
+
+    // ... Todo o resto do código original interno da função permanece aqui dentro ...
+    // (Geralmente contendo os testes de 'if (desc_itf->bInterfaceSubClass == 0x5D ...)')
+
+    // 2. Modifique apenas o final da função:
+    // Onde originalmente estava 'return true;', altere para retornar o tamanho lido:
+    return desc_itf->bLength;
 }
     TU_LOG1("XInput Open\r\n");
     TU_VERIFY(desc_itf->bNumEndpoints > 0);
