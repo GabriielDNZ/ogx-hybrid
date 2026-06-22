@@ -1,3 +1,4 @@
+#include <cstring>
 #include <pico/stdlib.h>
 #include <hardware/timer.h>
 #include <hardware/irq.h>
@@ -9,12 +10,9 @@
 #include "USBHost/HostDriver/XInput/Xbox360W.h"
 #include "Board/ogxm_log.h"
 
-// REMOVIDO O MACRO FRÁGIL '#define Core1 Core0'
-
 Xbox360WHost::~Xbox360WHost()
 {
-    // Chamada explícita através da classe controladora da fila de tarefas
-    TaskQueue::Core0::cancel_delayed_task(tid_chatpad_keepalive_);
+    TaskQueue::Core1::cancel_delayed_task(tid_chatpad_keepalive_);
 }
 
 void Xbox360WHost::initialize(Gamepad& gamepad, uint8_t address, uint8_t instance, const uint8_t* report_desc, uint16_t desc_len)
@@ -93,16 +91,16 @@ bool Xbox360WHost::send_feedback(Gamepad& gamepad, uint8_t address, uint8_t inst
 
 void Xbox360WHost::connect_cb(Gamepad& gamepad, uint8_t address, uint8_t instance)
 {
-    tid_chatpad_keepalive_ = TaskQueue::Core0::get_new_task_id();
+    tid_chatpad_keepalive_ = TaskQueue::Core1::get_new_task_id();
 
-    // Redirecionado explicitamente para o Core0 estável
-    TaskQueue::Core0::queue_delayed_task(TaskQueue::Core0::get_new_task_id(), 1000, false, 
+    //Might not be ready for leds yet, needs delay
+    TaskQueue::Core1::queue_delayed_task(TaskQueue::Core1::get_new_task_id(), 1000, false, 
     [address, instance, this]
     {
         tuh_xinput::set_led(address, instance, idx_ + 1, false);
         tuh_xinput::xbox360_chatpad_init(address, instance);
         
-        TaskQueue::Core0::queue_delayed_task(tid_chatpad_keepalive_, tuh_xinput::KEEPALIVE_MS, true, 
+        TaskQueue::Core1::queue_delayed_task(tid_chatpad_keepalive_, tuh_xinput::KEEPALIVE_MS, true, 
         [address, instance]
         {
             OGXM_LOG("XInput Chatpad Keepalive\r\n");
@@ -113,5 +111,5 @@ void Xbox360WHost::connect_cb(Gamepad& gamepad, uint8_t address, uint8_t instanc
 
 void Xbox360WHost::disconnect_cb(Gamepad& gamepad, uint8_t address, uint8_t instance)
 {
-    TaskQueue::Core0::cancel_delayed_task(tid_chatpad_keepalive_);
+    TaskQueue::Core1::cancel_delayed_task(tid_chatpad_keepalive_);
 }

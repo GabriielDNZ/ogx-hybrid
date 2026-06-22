@@ -25,6 +25,18 @@ set(BTSTACK_ROOT ${BLUEPAD32_ROOT}/external/btstack)
 set(PICO_BTSTACK_PATH ${BTSTACK_ROOT})
 set(LIBFIXMATH_PATH ${EXTERNAL_DIR}/libfixmath)
 
+#get_pico_sdk(${EXTERNAL_DIR} ${PICOSDK_VERSION_TAG})
+# HIBRIDO: init_git_submodules() comentado de proposito. Neste fork,
+# o workflow do GitHub Actions ja inicializa os submodulos via
+# "actions/checkout@v4" com "submodules: recursive" ANTES do CMake
+# rodar -- chamar de novo aqui e redundante, e o calculo de REPO_DIR
+# (EXTERNAL_DIR/../../) nao bate mais com a raiz do repo nesta nova
+# estrutura de pastas (a raiz do .gitmodules agora fica 1 nivel acima
+# do que estava no projeto original).
+# init_git_submodules(${EXTERNAL_DIR}
+#     ${BLUEPAD32_ROOT}
+#     ${PICO_TINYUSB_PATH}
+# )
 apply_lib_patches(${EXTERNAL_DIR})
 
 set(SOURCES_BOARD 
@@ -53,7 +65,6 @@ set(SOURCES_BOARD
     ${SRC}/UserSettings/TriggerSettings.cpp
 
     ${SRC}/USBDevice/tud_callbacks.cpp
-   
     ${SRC}/USBDevice/DeviceManager.cpp
     ${SRC}/USBDevice/DeviceDriver/DeviceDriver.cpp
     ${SRC}/USBDevice/DeviceDriver/PSClassic/PSClassic.cpp
@@ -68,8 +79,8 @@ set(SOURCES_BOARD
     ${SRC}/USBDevice/DeviceDriver/XInput/tud_xinput/tud_xinput.cpp
     ${SRC}/USBDevice/DeviceDriver/XboxOG/tud_xid/tud_xid.cpp
 )
-
 set(LIBS_BOARD
+    # Base
     pico_stdlib
     pico_multicore
     pico_rand
@@ -81,72 +92,104 @@ set(LIBS_BOARD
     pico_flash
     tinyusb_device
     tinyusb_board
+    # UART
     hardware_uart
     hardware_irq
+    #fix16
     libfixmath
 )
+set(INC_DIRS_BOARD
+)
 
-set(INC_DIRS_BOARD "")
+# Config options
 
 set(MAX_GAMEPADS 1 CACHE STRING "Set number of gamepads, 1 to 4")
 if (MAX_GAMEPADS GREATER 4 OR MAX_GAMEPADS LESS 1)
-    message(FATAL_ERROR "MAX_GAMEPADS must be between 1 to 4")
+    message(FATAL_ERROR "MAX_GAMEPADS must be between 1 and 4")
 endif()
+add_definitions(-DMAX_GAMEPADS=${MAX_GAMEPADS})
 
-set(OGXM_BOARD "PI_PICO2W" CACHE STRING "Fixado em PI_PICO2W")
+set(OGXM_BOARD "PI_PICO2W" CACHE STRING "Fixado em PI_PICO2W neste fork hibrido")
 set(FLASH_SIZE_MB 4)
 set(PICO_BOARD none)
 
-# Configura as flags lógicas das placas antes da inicialização do projeto
 if (OGXM_BOARD STREQUAL "PI_PICO")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO=1)
     set(EN_USB_HOST TRUE)
 
 elseif (OGXM_BOARD STREQUAL "PI_PICO2")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2=1)
     set(EN_USB_HOST TRUE)
     set(PICO_PLATFORM rp2350)
     set(FLASH_SIZE_MB 4)
 
 elseif(OGXM_BOARD STREQUAL "PI_PICOW")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICOW=1)
     set(EN_BLUETOOTH TRUE)
-    set(EN_USB_HOST TRUE)
     set(PICO_BOARD pico_w)
 
 elseif(OGXM_BOARD STREQUAL "PI_PICO2W")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2W=1)
     set(EN_BLUETOOTH TRUE)
-    set(EN_USB_HOST TRUE)
     set(PICO_BOARD pico2_w)
     set(PICO_PLATFORM rp2350)
     set(FLASH_SIZE_MB 4)
-    list(APPEND INC_DIRS_BOARD ${PICO_PIO_USB_PATH}/src)
 
 elseif(OGXM_BOARD STREQUAL "ADAFRUIT_FEATHER")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ADAFRUIT_FEATHER=1)
     set(EN_USB_HOST TRUE)
     set(EN_RGB TRUE)
     set(FLASH_SIZE_MB 8)
 
 elseif(OGXM_BOARD STREQUAL "RP2040_ZERO")
+    add_compile_definitions(CONFIG_OGXM_BOARD_RP2040_ZERO=1)
     set(EN_USB_HOST TRUE)
     set(EN_RGB TRUE)
 
+# elseif(OGXM_BOARD STREQUAL "INTERNAL_4CH")
+#     set(EN_USB_HOST TRUE)
+#     set(EN_4CH TRUE)
+
 elseif(OGXM_BOARD STREQUAL "EXTERNAL_4CH_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_EXTERNAL_4CH=1)
     set(EN_USB_HOST TRUE)
     set(EN_4CH TRUE)
     set(EN_RGB TRUE)
 
 elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C=1)
     set(EN_ESP32 TRUE)
     set(EN_UART_BRIDGE TRUE)
 
+    if(OGXM_RETAIL STREQUAL "TRUE")
+        message(STATUS "Retail mode enabled.")
+        add_compile_definitions(OGXM_RETAIL=1)
+    endif()
+
 elseif(OGXM_BOARD STREQUAL "ESP32_BLUERETRO_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUERETRO_I2C=1)
     set(EN_ESP32 TRUE)
     set(EN_BLUERETRO_I2C TRUE)
     set(EN_UART_BRIDGE TRUE)
+
+    if(OGXM_RETAIL STREQUAL "TRUE")
+        message(STATUS "Retail mode enabled.")
+        add_compile_definitions(OGXM_RETAIL=1)
+    endif()
+
+else()
+    message(FATAL_ERROR "Invalid OGXM_BOARD value. See options in src/board_config.h")
+
 endif()
+
+add_definitions(-DOGXM_BOARD=${OGXM_BOARD})
 
 if(EN_USB_HOST)
     message(STATUS "USB host enabled.")
+    add_compile_definitions(CONFIG_EN_USB_HOST=1)
     list(APPEND SOURCES_BOARD
         ${SRC}/USBHost/tuh_callbacks.cpp
+        # HID
         ${SRC}/USBHost/HostDriver/DInput/DInput.cpp
         ${SRC}/USBHost/HostDriver/PSClassic/PSClassic.cpp
         ${SRC}/USBHost/HostDriver/SwitchWired/SwitchWired.cpp
@@ -156,11 +199,14 @@ if(EN_USB_HOST)
         ${SRC}/USBHost/HostDriver/PS3/PS3.cpp
         ${SRC}/USBHost/HostDriver/N64/N64.cpp
         ${SRC}/USBHost/HostDriver/HIDGeneric/HIDGeneric.cpp
+
         ${SRC}/USBHost/HIDParser/HIDJoystick.cpp
         ${SRC}/USBHost/HIDParser/HIDReportDescriptor.cpp
         ${SRC}/USBHost/HIDParser/HIDReportDescriptorElements.cpp
         ${SRC}/USBHost/HIDParser/HIDReportDescriptorUsages.cpp
         ${SRC}/USBHost/HIDParser/HIDUtils.cpp
+
+        # XInput
         ${SRC}/USBHost/HostDriver/XInput/XboxOG.cpp
         ${SRC}/USBHost/HostDriver/XInput/XboxOne.cpp
         ${SRC}/USBHost/HostDriver/XInput/Xbox360.cpp
@@ -174,23 +220,22 @@ if(EN_USB_HOST)
 endif()
 
 if(EN_BLUETOOTH)
+    add_compile_definitions(CONFIG_EN_BLUETOOTH=1)
     message(STATUS "Bluetooth enabled.")
+
     generate_gatt_header(${BTSTACK_ROOT} ${SRC}/BLEServer/att_delayed_response.gatt ${SRC}/BLEServer/att_delayed_response.h)
     
     list(APPEND SOURCES_BOARD
         ${SRC}/Bluepad32/Bluepad32.cpp
         ${SRC}/BLEServer/BLEServer.cpp
-        ${BTSTACK_ROOT}/src/hci_event_builder.c
     )
     list(APPEND INC_DIRS_BOARD
         ${SRC}
         ${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
         ${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
     )
-    # CORREÇÃO EFETUADA: Removidos targets inválidos (run_loop_background e chipset_cyw43)
     list(APPEND LIBS_BOARD
         pico_cyw43_arch_none
-        pico_btstack_ble
         pico_btstack_classic
         pico_btstack_cyw43
         bluepad32
@@ -198,6 +243,8 @@ if(EN_BLUETOOTH)
 endif()
 
 if(EN_RGB)
+    add_compile_definitions(CONFIG_EN_RGB=1)
+    message(STATUS "RGB enabled.")
     list(APPEND SOURCES_BOARD
         ${SRC}/Board/Pico_WS2812/WS2812.cpp
     )
@@ -207,6 +254,12 @@ if(EN_RGB)
 endif()
 
 if(EN_4CH)
+    add_compile_definitions(CONFIG_EN_4CH=1)
+    message(STATUS "4CH enabled.")
+    # list(APPEND SOURCES_BOARD
+    #     ${SRC}/I2CDriver/4Channel/I2CMaster.cpp
+    #     ${SRC}/I2CDriver/4Channel/I2CSlave.cpp
+    # )
     list(APPEND LIBS_BOARD
         hardware_i2c
         pico_i2c_slave
@@ -214,7 +267,11 @@ if(EN_4CH)
 endif()
 
 if(EN_ESP32)
-    if (NOT EN_BLUERETRO_I2C)
+    add_compile_definitions(CONFIG_EN_ESP32=1)
+    message(STATUS "ESP32 enabled.")
+    if (EN_BLUERETRO_I2C)
+        # Nothing
+    else()
         list(APPEND LIBS_BOARD
             pico_i2c_slave
         )
@@ -225,76 +282,12 @@ if(EN_ESP32)
 endif()
 
 if(EN_UART_BRIDGE)
+    add_compile_definitions(CONFIG_EN_UART_BRIDGE=1)
+    message(STATUS "UART bridge enabled.")
     list(APPEND SOURCES_BOARD
         ${SRC}/USBDevice/DeviceDriver/UARTBridge/UARTBridge.cpp
         ${SRC}/USBDevice/DeviceDriver/UARTBridge/uart_bridge/uart_bridge.c
     )
-endif()
-
-# Inicializa o SDK e declara o Projeto Oficialmente (Obrigatório antes de aplicar as definições de compilação)
-include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
-project(${FW_NAME} C CXX ASM)
-pico_sdk_init()
-
-# Agora podemos aplicar com segurança todas as definições globais de compilação
-add_definitions(-DMAX_GAMEPADS=${MAX_GAMEPADS})
-
-if (OGXM_BOARD STREQUAL "PI_PICO")
-    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO=1)
-    add_compile_definitions(OGXM_BOARD=PI_PICO)
-elseif (OGXM_BOARD STREQUAL "PI_PICO2")
-    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2=1)
-    add_compile_definitions(OGXM_BOARD=PI_PICO2)
-elseif(OGXM_BOARD STREQUAL "PI_PICOW")
-    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICOW=1)
-    add_compile_definitions(OGXM_BOARD=PI_PICOW)
-elseif(OGXM_BOARD STREQUAL "PI_PICO2W")
-    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2W=1)
-    add_compile_definitions(OGXM_BOARD=PI_PICOW)
-    add_compile_definitions(PIO_USB_DP_PIN=0) 
-elseif(OGXM_BOARD STREQUAL "ADAFRUIT_FEATHER")
-    add_compile_definitions(CONFIG_OGXM_BOARD_ADAFRUIT_FEATHER=1)
-    add_compile_definitions(OGXM_BOARD=ADAFRUIT_FEATHER)
-elseif(OGXM_BOARD STREQUAL "RP2040_ZERO")
-    add_compile_definitions(CONFIG_OGXM_BOARD_RP2040_ZERO=1)
-    add_compile_definitions(OGXM_BOARD=RP2040_ZERO)
-elseif(OGXM_BOARD STREQUAL "EXTERNAL_4CH_I2C")
-    add_compile_definitions(CONFIG_OGXM_BOARD_EXTERNAL_4CH=1)
-    add_compile_definitions(OGXM_BOARD=EXTERNAL_4CH_I2C)
-elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
-    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C=1)
-    add_compile_definitions(OGXM_BOARD=ESP32_BLUEPAD32_I2C)
-elseif(OGXM_BOARD STREQUAL "ESP32_BLUERETRO_I2C")
-    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUERETRO_I2C=1)
-    add_compile_definitions(OGXM_BOARD=ESP32_BLUERETRO_I2C)
-endif()
-
-if(OGXM_RETAIL STREQUAL "TRUE")
-    add_compile_definitions(OGXM_RETAIL=1)
-endif()
-
-if(EN_USB_HOST)
-    add_compile_definitions(CONFIG_EN_USB_HOST=1)
-endif()
-
-if(EN_BLUETOOTH)
-    add_compile_definitions(CONFIG_EN_BLUETOOTH=1)
-endif()
-
-if(EN_RGB)
-    add_compile_definitions(CONFIG_EN_RGB=1)
-endif()
-
-if(EN_4CH)
-    add_compile_definitions(CONFIG_EN_4CH=1)
-endif()
-
-if(EN_ESP32)
-    add_compile_definitions(CONFIG_EN_ESP32=1)
-endif()
-
-if(EN_UART_BRIDGE)
-    add_compile_definitions(CONFIG_EN_UART_BRIDGE=1)
 endif()
 
 string(TIMESTAMP CURRENT_DATETIME "%Y-%m-%d %H:%M:%S")
@@ -302,17 +295,29 @@ add_compile_definitions(BUILD_DATETIME="${CURRENT_DATETIME}")
 add_compile_definitions(FIRMWARE_NAME="${FW_NAME}")
 add_compile_definitions(FIRMWARE_VERSION="${FW_VERSION}")
 
+# ---------------------------------------------------------------------
+# HIBRIDO: este app roda a partir de um OFFSET dentro da flash de 4MB
+# do Pico 2 W, nao do endereco 0x10000000 (que e do bootloader). Ver
+# shared/flash_layout.cmake para os valores oficiais compartilhados
+# entre bootloader/app-controller/app-audio.
+# ---------------------------------------------------------------------
 set(HYBRID_SHARED_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../shared)
 set(TARGET_PARTITION "controller")
 include(${HYBRID_SHARED_DIR}/flash_layout.cmake)
 
+# PICO_FLASH_SIZE_BYTES aqui reflete o TAMANHO TOTAL FISICO da flash
+# (necessario para o SDK calcular enderecos XIP corretamente), NAO o
+# tamanho da particao. O linker script (abaixo) e quem realmente
+# restringe onde o codigo deste app pode ser colocado.
 add_compile_definitions(PICO_FLASH_SIZE_BYTES=${TOTAL_FLASH_SIZE_BYTES})
 add_compile_definitions(NVS_SECTORS=4)
 add_compile_definitions(HYBRID_APP_FLASH_OFFSET=${FLASH_OFFSET})
 add_compile_definitions(HYBRID_APP_FLASH_LENGTH=${FLASH_LENGTH})
 
+# Check for DVD dongle firmware
 if(EXISTS ${SRC}/USBDevice/DeviceDriver/XboxOG/tud_xid/tud_xid_xremote_rom.h)
-    add_compile_definitions(XREMOTE_ROM_AVAILABLE=1)
+    message(STATUS "XRemote ROM available.")
+    add_definitions(-DXREMOTE_ROM_AVAILABLE)
 endif()
 
 if(NOT EN_BLUETOOTH)
@@ -320,18 +325,36 @@ if(NOT EN_BLUETOOTH)
     add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 endif()
 
-# Cria o executável alvo
+include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
+
+project(${FW_NAME} C CXX ASM)
+
+pico_sdk_init()
+
 add_executable(${FW_NAME} ${SOURCES_BOARD})
 
+# HIBRIDO: linker script fixo com offset para particao do controller
 set(CONTROLLER_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/memmap_controller.ld)
 pico_set_linker_script(${FW_NAME} ${CONTROLLER_LD_OUT})
 
+set(BUILD_STR "")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if(OGXM_BOARD STREQUAL "PI_PICOW")
+        message(FATAL_ERROR "Debug build will not work with the Pico W currently")
+    endif()
+
+    message(STATUS "Debug build enabled.")
     set(BUILD_STR "-Debug")
+
     set(TX_PIN 0)
     set(RX_PIN 1)
+    set(UART_PORT)
+
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/get_pico_uart_port.cmake)
     get_pico_uart_port(${TX_PIN} UART_PORT)
+
+    message(STATUS "UART port: ${UART_PORT}, TX: ${TX_PIN}, RX: ${RX_PIN}")
 
     pico_enable_stdio_uart(${FW_NAME} 1)
     target_compile_definitions(${FW_NAME} PRIVATE
@@ -344,33 +367,46 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(OGXM_DEBUG=1)
 
     target_compile_options(${FW_NAME} PRIVATE
-        -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-parameter
+        -Wall                # Enable most warnings
+        -Wextra              # Enable extra warnings
+        -Wconversion         # Warn on type conversion issues
+        -Wsign-conversion    # Warn on sign conversion issues
+        -Wno-unused-parameter # Disable warnings for unused parameters
+        # -Werror              # Treat warnings as errors
     )
 
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     pico_enable_stdio_uart(${FW_NAME} 0)
     add_compile_definitions(CFG_TUSB_DEBUG=0)
     add_compile_options(
-        -O3 -mthumb -ffunction-sections -fdata-sections -fomit-frame-pointer -finline-functions
+        -O3                     # Optimize for speed
+        # -mcpu=cortex-m0plus     # Target ARM Cortex-M0+
+        -mthumb                 # Use Thumb instruction set
+        -ffunction-sections     # Place each function in its own section
+        -fdata-sections         # Place each data item in its own section
+        -fomit-frame-pointer    # Omit frame pointers
+        -finline-functions      # Enable inlining
     )
+
     add_link_options(
-        -Wl,--gc-sections -flto
+        -Wl,--gc-sections       # Remove unused sections
+        -flto                   # Link-Time Optimization
     )
 endif()
 
 pico_set_program_name(${FW_NAME} ${FW_NAME})
 pico_set_program_version(${FW_NAME} ${FW_VERSION})
 
-# Configuração moderna de diretórios de inclusão vinculados ao Target
 target_include_directories(${FW_NAME} PRIVATE 
     ${SRC}
     ${HYBRID_SHARED_DIR}
-    ${INC_DIRS_BOARD}
 )
 
 if(EN_RGB)
     pico_generate_pio_header(${FW_NAME} ${SRC}/Board/Pico_WS2812/WS2812.pio)
 endif()
+
+include_directories(${INC_DIRS_BOARD})
 
 if(EN_USB_HOST)
     add_subdirectory(${PICO_PIO_USB_PATH} ${CMAKE_BINARY_DIR}/Pico-PIO-USB)
@@ -378,24 +414,20 @@ endif()
 
 if(EN_BLUETOOTH)
     add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
-    # CORREÇÃO: Garante que o target isolado do bluepad32 consiga localizar o btstack_config.h presente em ${SRC}
-    target_include_directories(bluepad32 PRIVATE ${SRC})
 endif()
 
 add_subdirectory(${LIBFIXMATH_PATH} libfixmath)
 
 target_link_libraries(${FW_NAME} PRIVATE ${LIBS_BOARD})
 
-# CORREÇÃO EFETUADA: Alterado de PRIVATE para INTERFACE, pois tinyusb_board agora é um interface target no SDK do RP2350
-if(OGXM_BOARD STREQUAL "PI_PICO2W")
-    target_compile_definitions(tinyusb_board INTERFACE 
-        PICO_DEFAULT_PIO_USB_DP_PIN=0
-        PICO_DEFAULT_PIO_USB_DM_PIN=1
-    )
-endif()
-
 target_compile_definitions(libfixmath PRIVATE
-    FIXMATH_FAST_SIN FIXMATH_NO_64BIT FIXMATH_NO_CACHE FIXMATH_NO_HARD_DIVISION FIXMATH_NO_OVERFLOW
+    FIXMATH_FAST_SIN
+    FIXMATH_NO_64BIT
+    FIXMATH_NO_CACHE
+    FIXMATH_NO_HARD_DIVISION
+    FIXMATH_NO_OVERFLOW
+    # FIXMATH_NO_ROUNDING
+    # FIXMATH_OPTIMIZE_8BIT
 )
 
 if(OGXM_RETAIL STREQUAL "TRUE")

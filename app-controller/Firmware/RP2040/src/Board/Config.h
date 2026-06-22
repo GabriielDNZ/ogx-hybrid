@@ -23,9 +23,8 @@
     #define LED_INDICATOR_PIN   25
 
 #elif defined(CONFIG_OGXM_BOARD_PI_PICOW) || defined(CONFIG_OGXM_BOARD_PI_PICO2W)
-   #ifndef OGXM_BOARD
-    #define OGXM_BOARD          PI_PICO2W
-#endif
+    #define OGXM_BOARD          PI_PICOW
+
 #elif defined(CONFIG_OGXM_BOARD_RP2040_ZERO)
     #define OGXM_BOARD          RP2040_ZERO
     #define RGB_PXL_PIN         16 
