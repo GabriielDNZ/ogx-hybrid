@@ -63,14 +63,14 @@ jobs:
       - name: Init bluepad32 submodules (btstack etc)
         run: |
           rm -rf app-controller/Firmware/external/bluepad32
-          git clone --recurse-submodules https://github.com/ricardoquesada/bluepad32.git \
+          git clone --branch v4.2.0 https://github.com/ricardoquesada/bluepad32.git \
             app-controller/Firmware/external/bluepad32
-          # Clonar btstack na versao 1.6.1 compativel com este bluepad32
-          rm -rf app-controller/Firmware/external/bluepad32/external/btstack
-          git clone --branch v1.6.1 https://github.com/bluekitchen/btstack.git \
-            app-controller/Firmware/external/bluepad32/external/btstack
+          cd app-controller/Firmware/external/bluepad32
+          git submodule update --init --recursive
+          cd ${{ github.workspace }}
+          # Usar o TinyUSB interno do bluepad32 (versao compativel testada)
           rm -rf app-controller/Firmware/external/tinyusb
-          git clone --recurse-submodules https://github.com/hathach/tinyusb.git \
+          cp -r app-controller/Firmware/external/bluepad32/external/tinyusb \
             app-controller/Firmware/external/tinyusb
           rm -rf app-controller/Firmware/external/libfixmath
           git clone https://github.com/PetteriAimonen/libfixmath.git \
