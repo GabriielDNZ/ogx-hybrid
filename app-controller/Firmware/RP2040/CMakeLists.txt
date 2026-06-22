@@ -236,6 +236,7 @@ if(EN_BLUETOOTH)
     )
     list(APPEND LIBS_BOARD
         pico_cyw43_arch_none
+        pico_btstack_ble
         pico_btstack_classic
         pico_btstack_cyw43
         bluepad32
