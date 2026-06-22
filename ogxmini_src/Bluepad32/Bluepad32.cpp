@@ -11,6 +11,7 @@
 #include "Bluepad32/Bluepad32.h"
 #include "Board/board_api.h"
 #include "Board/ogxm_log.h"
+extern "C" {
 #include "parser/uni_hid_parser_psmove.h"
 #include "parser/uni_hid_parser_ds3.h"
 #include "parser/uni_hid_parser_ds4.h"
@@ -19,6 +20,7 @@
 #include "parser/uni_hid_parser_switch.h"
 #include "parser/uni_hid_parser_xboxone.h"
 #include "parser/uni_hid_parser_stadia.h"
+}
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
     #error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
