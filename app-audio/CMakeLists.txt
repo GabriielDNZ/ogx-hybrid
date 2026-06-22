@@ -60,18 +60,8 @@ add_executable(${PROJECT_NAME}
     src/tinyusb/usb_descriptors.c
 )
 
-# ---------------------------------------------------------------------
-# HIBRIDO: linker script com offset, gerado a partir do template
-# compartilhado (ver shared/memmap_rp2350_offset.ld.in). FLASH_OFFSET
-# e FLASH_LENGTH ja foram definidos pelo include() de flash_layout.cmake
-# (TARGET_PARTITION="audio") logo acima.
-# ---------------------------------------------------------------------
-set(AUDIO_LD_OUT ${CMAKE_CURRENT_BINARY_DIR}/memmap_audio.ld)
-configure_file(
-    ${HYBRID_SHARED_DIR}/memmap_rp2350_offset.ld.in
-    ${AUDIO_LD_OUT}
-    @ONLY
-)
+# HIBRIDO: linker script fixo com offset para particao do audio
+set(AUDIO_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/memmap_audio.ld)
 pico_set_linker_script(${PROJECT_NAME} ${AUDIO_LD_OUT})
 
 

@@ -333,18 +333,8 @@ pico_sdk_init()
 
 add_executable(${FW_NAME} ${SOURCES_BOARD})
 
-# ---------------------------------------------------------------------
-# HIBRIDO: linker script com offset, gerado a partir do template
-# compartilhado (ver shared/memmap_rp2350_offset.ld.in). FLASH_OFFSET
-# e FLASH_LENGTH ja foram definidos pelo include() de flash_layout.cmake
-# (TARGET_PARTITION="controller") logo acima.
-# ---------------------------------------------------------------------
-set(CONTROLLER_LD_OUT ${CMAKE_CURRENT_BINARY_DIR}/memmap_controller.ld)
-configure_file(
-    ${HYBRID_SHARED_DIR}/memmap_rp2350_offset.ld.in
-    ${CONTROLLER_LD_OUT}
-    @ONLY
-)
+# HIBRIDO: linker script fixo com offset para particao do controller
+set(CONTROLLER_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/memmap_controller.ld)
 pico_set_linker_script(${FW_NAME} ${CONTROLLER_LD_OUT})
 
 set(BUILD_STR "")

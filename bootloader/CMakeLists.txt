@@ -47,16 +47,8 @@ target_compile_definitions(ogxm_hybrid_bootloader PRIVATE
     PICO_FLASH_SIZE_BYTES=${TOTAL_FLASH_SIZE_BYTES}
 )
 
-# --- Linker script com offset = 0 (bootloader fica no inicio da flash) ---
-# FLASH_OFFSET e FLASH_LENGTH ja foram definidos pelo include() acima,
-# entao configure_file() consegue substituir @FLASH_OFFSET@/@FLASH_LENGTH@
-# corretamente no template.
-set(BOOTLOADER_LD_OUT ${CMAKE_CURRENT_BINARY_DIR}/memmap_bootloader.ld)
-configure_file(
-    ${CMAKE_CURRENT_LIST_DIR}/../shared/memmap_rp2350_offset.ld.in
-    ${BOOTLOADER_LD_OUT}
-    @ONLY
-)
+# --- Linker script fixo para o bootloader (offset = 0, 128KB) ---
+set(BOOTLOADER_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/cmake/memmap_bootloader.ld)
 pico_set_linker_script(ogxm_hybrid_bootloader ${BOOTLOADER_LD_OUT})
 
 pico_add_extra_outputs(ogxm_hybrid_bootloader)

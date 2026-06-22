@@ -113,20 +113,10 @@
  /*------------- MAIN -------------*/
  void tinyusb_main(void)
  {
-
-
   flash_safe_execute_core_init();
 
-  //board_init();
- 
-   // init device stack on configured roothub port
-   tusb_rhport_init_t dev_init = {
-     .role = TUSB_ROLE_DEVICE,
-     .speed = TUSB_SPEED_AUTO
-   };
-   tusb_init(BOARD_TUD_RHPORT, &dev_init);
-
-
+  // init device stack - SDK 2.1.0: tud_init() sem argumentos
+  tud_init(BOARD_TUD_RHPORT);
  }
 
 
