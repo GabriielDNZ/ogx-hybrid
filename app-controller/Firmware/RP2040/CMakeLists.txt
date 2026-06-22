@@ -90,7 +90,7 @@ set(INC_DIRS_BOARD "")
 
 set(MAX_GAMEPADS 1 CACHE STRING "Set number of gamepads, 1 to 4")
 if (MAX_GAMEPADS GREATER 4 OR MAX_GAMEPADS LESS 1)
-    message(FATAL_ERROR "MAX_GAMEPADS must be between 1 and 4")
+    message(FATAL_ERROR "MAX_GAMEPADS must be between 1 to 4")
 endif()
 
 set(OGXM_BOARD "PI_PICO2W" CACHE STRING "Fixado em PI_PICO2W")
@@ -186,7 +186,9 @@ if(EN_BLUETOOTH)
         ${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
         ${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
     )
+    # CORREÇÃO EFETUADA: Adicionado 'pico_btstack' para fornecer o 'hci_event_builder' ausente no link do RP2350
     list(APPEND LIBS_BOARD
+        pico_btstack
         pico_cyw43_arch_none
         pico_btstack_ble
         pico_btstack_classic
