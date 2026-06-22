@@ -131,4 +131,273 @@ elseif(OGXM_BOARD STREQUAL "RP2040_ZERO")
 elseif(OGXM_BOARD STREQUAL "EXTERNAL_4CH_I2C")
     set(EN_USB_HOST TRUE)
     set(EN_4CH TRUE)
-    set(EN_RGB
+    set(EN_RGB TRUE)
+
+elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
+    set(EN_ESP32 TRUE)
+    set(EN_UART_BRIDGE TRUE)
+
+elseif(OGXM_BOARD STREQUAL "ESP32_BLUERETRO_I2C")
+    set(EN_ESP32 TRUE)
+    set(EN_BLUERETRO_I2C TRUE)
+    set(EN_UART_BRIDGE TRUE)
+endif()
+
+if(EN_USB_HOST)
+    message(STATUS "USB host enabled.")
+    list(APPEND SOURCES_BOARD
+        ${SRC}/USBHost/tuh_callbacks.cpp
+        ${SRC}/USBHost/HostDriver/DInput/DInput.cpp
+        ${SRC}/USBHost/HostDriver/PSClassic/PSClassic.cpp
+        ${SRC}/USBHost/HostDriver/SwitchWired/SwitchWired.cpp
+        ${SRC}/USBHost/HostDriver/SwitchPro/SwitchPro.cpp
+        ${SRC}/USBHost/HostDriver/PS5/PS5.cpp
+        ${SRC}/USBHost/HostDriver/PS4/PS4.cpp
+        ${SRC}/USBHost/HostDriver/PS3/PS3.cpp
+        ${SRC}/USBHost/HostDriver/N64/N64.cpp
+        ${SRC}/USBHost/HostDriver/HIDGeneric/HIDGeneric.cpp
+        ${SRC}/USBHost/HIDParser/HIDJoystick.cpp
+        ${SRC}/USBHost/HIDParser/HIDReportDescriptor.cpp
+        ${SRC}/USBHost/HIDParser/HIDReportDescriptorElements.cpp
+        ${SRC}/USBHost/HIDParser/HIDReportDescriptorUsages.cpp
+        ${SRC}/USBHost/HIDParser/HIDUtils.cpp
+        ${SRC}/USBHost/HostDriver/XInput/XboxOG.cpp
+        ${SRC}/USBHost/HostDriver/XInput/XboxOne.cpp
+        ${SRC}/USBHost/HostDriver/XInput/Xbox360.cpp
+        ${SRC}/USBHost/HostDriver/XInput/Xbox360W.cpp
+        ${SRC}/USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput.cpp
+    )
+    list(APPEND LIBS_BOARD
+        tinyusb_host
+        tinyusb_pico_pio_usb
+    )
+endif()
+
+if(EN_BLUETOOTH)
+    message(STATUS "Bluetooth enabled.")
+    generate_gatt_header(${BTSTACK_ROOT} ${SRC}/BLEServer/att_delayed_response.gatt ${SRC}/BLEServer/att_delayed_response.h)
+    
+    list(APPEND SOURCES_BOARD
+        ${SRC}/Bluepad32/Bluepad32.cpp
+        ${SRC}/BLEServer/BLEServer.cpp
+    )
+    list(APPEND INC_DIRS_BOARD
+        ${SRC}
+        ${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
+        ${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
+    )
+    list(APPEND LIBS_BOARD
+        pico_cyw43_arch_none
+        pico_btstack_ble
+        pico_btstack_classic
+        pico_btstack_cyw43
+        bluepad32
+    )
+endif()
+
+if(EN_RGB)
+    list(APPEND SOURCES_BOARD
+        ${SRC}/Board/Pico_WS2812/WS2812.cpp
+    )
+    list(APPEND LIBS_BOARD
+        hardware_pio
+    )
+endif()
+
+if(EN_4CH)
+    list(APPEND LIBS_BOARD
+        hardware_i2c
+        pico_i2c_slave
+    )
+endif()
+
+if(EN_ESP32)
+    if (NOT EN_BLUERETRO_I2C)
+        list(APPEND LIBS_BOARD
+            pico_i2c_slave
+        )
+    endif()
+    list(APPEND LIBS_BOARD
+        hardware_i2c
+    )
+endif()
+
+if(EN_UART_BRIDGE)
+    list(APPEND SOURCES_BOARD
+        ${SRC}/USBDevice/DeviceDriver/UARTBridge/UARTBridge.cpp
+        ${SRC}/USBDevice/DeviceDriver/UARTBridge/uart_bridge/uart_bridge.c
+    )
+endif()
+
+# Inicializa o SDK e declara o Projeto Oficialmente
+include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
+project(${FW_NAME} C CXX ASM)
+pico_sdk_init()
+
+# Aplica com segurança todas as definições globais de compilação pós-inicialização
+add_definitions(-DMAX_GAMEPADS=${MAX_GAMEPADS})
+
+if (OGXM_BOARD STREQUAL "PI_PICO")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICO)
+elseif (OGXM_BOARD STREQUAL "PI_PICO2")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICO2)
+elseif(OGXM_BOARD STREQUAL "PI_PICOW")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICOW=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICOW)
+elseif(OGXM_BOARD STREQUAL "PI_PICO2W")
+    add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2W=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICOW)
+    # Entrega para a TinyUSB (family.c) exatamente o mapeamento de pinos do Host PIO no RP2350
+    add_compile_definitions(PICO_DEFAULT_PIO_USB_DP_PIN=0)
+    add_compile_definitions(PICO_DEFAULT_PIO_USB_DM_PIN=1)
+elseif(OGXM_BOARD STREQUAL "ADAFRUIT_FEATHER")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ADAFRUIT_FEATHER=1)
+    add_compile_definitions(OGXM_BOARD=ADAFRUIT_FEATHER)
+elseif(OGXM_BOARD STREQUAL "RP2040_ZERO")
+    add_compile_definitions(CONFIG_OGXM_BOARD_RP2040_ZERO=1)
+    add_compile_definitions(OGXM_BOARD=RP2040_ZERO)
+elseif(OGXM_BOARD STREQUAL "EXTERNAL_4CH_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_EXTERNAL_4CH=1)
+    add_compile_definitions(OGXM_BOARD=EXTERNAL_4CH_I2C)
+elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C=1)
+    add_compile_definitions(OGXM_BOARD=ESP32_BLUEPAD32_I2C)
+elseif(OGXM_BOARD STREQUAL "ESP32_BLUERETRO_I2C")
+    add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUERETRO_I2C=1)
+    add_compile_definitions(OGXM_BOARD=ESP32_BLUERETRO_I2C)
+endif()
+
+if(OGXM_RETAIL STREQUAL "TRUE")
+    add_compile_definitions(OGXM_RETAIL=1)
+endif()
+
+if(EN_USB_HOST)
+    add_compile_definitions(CONFIG_EN_USB_HOST=1)
+endif()
+
+if(EN_BLUETOOTH)
+    add_compile_definitions(CONFIG_EN_BLUETOOTH=1)
+endif()
+
+if(EN_RGB)
+    add_compile_definitions(CONFIG_EN_RGB=1)
+endif()
+
+if(EN_4CH)
+    add_compile_definitions(CONFIG_EN_4CH=1)
+endif()
+
+if(EN_ESP32)
+    add_compile_definitions(CONFIG_EN_ESP32=1)
+endif()
+
+if(EN_UART_BRIDGE)
+    add_compile_definitions(CONFIG_EN_UART_BRIDGE=1)
+endif()
+
+string(TIMESTAMP CURRENT_DATETIME "%Y-%m-%d %H:%M:%S")
+add_compile_definitions(BUILD_DATETIME="${CURRENT_DATETIME}")
+add_compile_definitions(FIRMWARE_NAME="${FW_NAME}")
+add_compile_definitions(FIRMWARE_VERSION="${FW_VERSION}")
+
+set(HYBRID_SHARED_DIR ${CMAKE_CURRENT_LIST_DIR}/../../../shared)
+set(TARGET_PARTITION "controller")
+include(${HYBRID_SHARED_DIR}/flash_layout.cmake)
+
+add_compile_definitions(PICO_FLASH_SIZE_BYTES=${TOTAL_FLASH_SIZE_BYTES})
+add_compile_definitions(NVS_SECTORS=4)
+add_compile_definitions(HYBRID_APP_FLASH_OFFSET=${FLASH_OFFSET})
+add_compile_definitions(HYBRID_APP_FLASH_LENGTH=${FLASH_LENGTH})
+
+if(EXISTS ${SRC}/USBDevice/DeviceDriver/XboxOG/tud_xid/tud_xid_xremote_rom.h)
+    add_compile_definitions(XREMOTE_ROM_AVAILABLE=1)
+endif()
+
+if(NOT EN_BLUETOOTH)
+    add_compile_definitions(PICO_BOOT_STAGE2_CHOOSE_GENERIC_03H=1)
+    add_compile_definitions(PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
+endif()
+
+# Cria o executável alvo
+add_executable(${FW_NAME} ${SOURCES_BOARD})
+
+set(CONTROLLER_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/memmap_controller.ld)
+pico_set_linker_script(${FW_NAME} ${CONTROLLER_LD_OUT})
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(BUILD_STR "-Debug")
+    set(TX_PIN 0)
+    set(RX_PIN 1)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/get_pico_uart_port.cmake)
+    get_pico_uart_port(${TX_PIN} UART_PORT)
+
+    pico_enable_stdio_uart(${FW_NAME} 1)
+    
+    target_compile_definitions(${FW_NAME} PRIVATE
+        PICO_DEFAULT_UART=${UART_PORT}
+        PICO_DEFAULT_UART_TX_PIN=${TX_PIN}
+        PICO_DEFAULT_UART_RX_PIN=${RX_PIN}
+        CFG_TUSB_DEBUG=1
+        OGXM_DEBUG=1
+    )
+
+    target_compile_options(${FW_NAME} PRIVATE
+        -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-parameter
+    )
+
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    pico_enable_stdio_uart(${FW_NAME} 0)
+    
+    target_compile_definitions(${FW_NAME} PRIVATE
+        CFG_TUSB_DEBUG=0
+    )
+    
+    add_compile_options(
+        -O3 -mthumb -ffunction-sections -fdata-sections -fomit-frame-pointer -finline-functions
+    )
+    add_link_options(
+        -Wl,--gc-sections -flto
+    )
+endif()
+
+pico_set_program_name(${FW_NAME} ${FW_NAME})
+pico_set_program_version(${FW_NAME} ${FW_VERSION})
+
+# Configuração moderna de diretórios de inclusão vinculados ao Target
+target_include_directories(${FW_NAME} PRIVATE 
+    ${SRC}
+    ${HYBRID_SHARED_DIR}
+    ${INC_DIRS_BOARD}
+)
+
+if(EN_RGB)
+    pico_generate_pio_header(${FW_NAME} ${SRC}/Board/Pico_WS2812/WS2812.pio)
+endif()
+
+if(EN_USB_HOST)
+    add_subdirectory(${PICO_PIO_USB_PATH} ${CMAKE_BINARY_DIR}/Pico-PIO-USB)
+endif()
+
+if(EN_BLUETOOTH)
+    add_subdirectory(${BLUEPAD32_ROOT}/src/components/bluepad32 libbluepad32)
+endif()
+
+add_subdirectory(${LIBFIXMATH_PATH} libfixmath)
+
+target_link_libraries(${FW_NAME} PRIVATE ${LIBS_BOARD})
+
+target_compile_definitions(libfixmath PRIVATE
+    FIXMATH_FAST_SIN FIXMATH_NO_64BIT FIXMATH_NO_CACHE FIXMATH_NO_HARD_DIVISION FIXMATH_NO_OVERFLOW
+)
+
+if(OGXM_RETAIL STREQUAL "TRUE")
+    set(EXE_FILENAME "${FW_NAME}-${FW_VERSION}-${OGXM_BOARD}${BUILD_STR}-Retail")
+else()
+    set(EXE_FILENAME "${FW_NAME}-${FW_VERSION}-${OGXM_BOARD}${BUILD_STR}")
+endif()
+
+set_target_properties(${FW_NAME} PROPERTIES OUTPUT_NAME ${EXE_FILENAME})
+
+pico_add_extra_outputs(${FW_NAME})
