@@ -384,10 +384,9 @@ add_subdirectory(${LIBFIXMATH_PATH} libfixmath)
 
 target_link_libraries(${FW_NAME} PRIVATE ${LIBS_BOARD})
 
-# CORREÇÃO CIRÚRGICA: Alimenta estritamente a TinyUSB com os pinos necessários para o RP2350
-# Sem poluir o escopo global ou arquivos nativos do seu projeto firmware (como o board_api_usbh.cpp)
+# CORREÇÃO EFETUADA: Alterado de PRIVATE para INTERFACE, pois tinyusb_board agora é um interface target no SDK do RP2350
 if(OGXM_BOARD STREQUAL "PI_PICO2W")
-    target_compile_definitions(tinyusb_board PRIVATE 
+    target_compile_definitions(tinyusb_board INTERFACE 
         PICO_DEFAULT_PIO_USB_DP_PIN=0
         PICO_DEFAULT_PIO_USB_DM_PIN=1
     )
