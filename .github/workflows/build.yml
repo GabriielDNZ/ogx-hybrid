@@ -1,0 +1,201 @@
+name: Build Hybrid OGX-Mini + USB-BT-Audio
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PICO_SDK_VERSION: "2.1.0"
+
+jobs:
+  build-bootloader:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # bootloader nao tem submodulos proprios
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      - name: Get Pico SDK
+        run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
+
+      - name: Build Bootloader
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          mkdir -p bootloader/build
+          cd bootloader/build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . -j$(nproc)
+          echo "--- Arquivos gerados ---"
+          find . -maxdepth 1 -name "*.uf2"
+
+      - name: Rename output (nome previsivel para o job de combine)
+        run: |
+          cd bootloader/build
+          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
+          cp "$FILE" bootloader.uf2
+
+      - name: Upload Bootloader UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootloader-uf2
+          path: bootloader/build/bootloader.uf2
+          if-no-files-found: error
+
+  build-controller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      - name: Get Pico SDK
+        run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
+
+      - name: Build App - Controller (PI_PICO2W)
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          mkdir -p app-controller/Firmware/RP2040/build
+          cd app-controller/Firmware/RP2040/build
+          cmake -DPICO_SDK_PATH=${PICO_SDK_PATH} \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DMAX_GAMEPADS=1 \
+                ..
+          cmake --build . -j$(nproc)
+          echo "--- Arquivos gerados ---"
+          find . -maxdepth 1 -name "*.uf2"
+
+      - name: Rename output (nome previsivel para o job de combine)
+        run: |
+          cd app-controller/Firmware/RP2040/build
+          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
+          cp "$FILE" controller.uf2
+
+      - name: Upload Controller UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: controller-uf2
+          path: app-controller/Firmware/RP2040/build/controller.uf2
+          if-no-files-found: error
+
+  build-audio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # app-audio nao tem submodulos (3rd-party ja vem completo no repo)
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      - name: Get Pico SDK
+        run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
+
+      - name: Build App - Audio
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          mkdir -p app-audio/build
+          cd app-audio/build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . -j$(nproc)
+          echo "--- Arquivos gerados ---"
+          find . -maxdepth 1 -name "*.uf2"
+
+      - name: Rename output (nome previsivel para o job de combine)
+        run: |
+          cd app-audio/build
+          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
+          cp "$FILE" audio.uf2
+
+      - name: Upload Audio UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-uf2
+          path: app-audio/build/audio.uf2
+          if-no-files-found: error
+
+  combine:
+    needs: [build-bootloader, build-controller, build-audio]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # so precisamos de scripts/combine_uf2.py, sem submodulos
+
+      - name: Download Bootloader UF2
+        uses: actions/download-artifact@v4
+        with:
+          name: bootloader-uf2
+          path: parts/
+
+      - name: Download Controller UF2
+        uses: actions/download-artifact@v4
+        with:
+          name: controller-uf2
+          path: parts/
+
+      - name: Download Audio UF2
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-uf2
+          path: parts/
+
+      - name: List downloaded parts
+        run: ls -la parts/
+
+      - name: Combine into single UF2
+        run: |
+          mkdir -p output
+          python3 scripts/combine_uf2.py \
+            --out output/OGX-Mini-Hybrid-PICO2W.uf2 \
+            parts/bootloader.uf2 \
+            parts/controller.uf2 \
+            parts/audio.uf2
+
+      - name: Verify combined file size
+        run: |
+          ls -la output/
+          # Sanity check basico: arquivo combinado deve ser bem maior
+          # que qualquer parte individual (soma aproximada das 3 partes)
+          du -h output/OGX-Mini-Hybrid-PICO2W.uf2
+
+      - name: Upload Combined UF2 (final deliverable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OGX-Mini-Hybrid-PICO2W
+          path: output/OGX-Mini-Hybrid-PICO2W.uf2
+          if-no-files-found: error
+
+  release:
+    needs: combine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Combined UF2
+        uses: actions/download-artifact@v4
+        with:
+          name: OGX-Mini-Hybrid-PICO2W
+          path: output
+
+      - name: List Files
+        run: ls -lh output/
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2.2.2
+        with:
+          tag_name: latest
+          draft: true
+          files: output/*.uf2
+
+      - name: Create Tagged Release
+        uses: softprops/action-gh-release@v2.2.2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: output/*.uf2
