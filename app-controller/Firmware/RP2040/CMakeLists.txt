@@ -180,6 +180,7 @@ if(EN_BLUETOOTH)
     list(APPEND SOURCES_BOARD
         ${SRC}/Bluepad32/Bluepad32.cpp
         ${SRC}/BLEServer/BLEServer.cpp
+        ${BTSTACK_ROOT}/src/hci_event_builder.c
     )
     list(APPEND INC_DIRS_BOARD
         ${SRC}
