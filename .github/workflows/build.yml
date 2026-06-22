@@ -68,10 +68,12 @@ jobs:
           cd app-controller/Firmware/external/bluepad32
           git submodule update --init --recursive
           cd ${{ github.workspace }}
-          # Usar o TinyUSB interno do bluepad32 (versao compativel testada)
           rm -rf app-controller/Firmware/external/tinyusb
-          cp -r app-controller/Firmware/external/bluepad32/external/tinyusb \
+          git clone https://github.com/hathach/tinyusb.git \
             app-controller/Firmware/external/tinyusb
+          cd app-controller/Firmware/external/tinyusb
+          git checkout 0.17.0
+          cd ${{ github.workspace }}
           rm -rf app-controller/Firmware/external/libfixmath
           git clone https://github.com/PetteriAimonen/libfixmath.git \
             app-controller/Firmware/external/libfixmath
