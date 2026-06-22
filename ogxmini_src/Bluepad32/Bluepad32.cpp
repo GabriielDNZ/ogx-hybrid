@@ -18,6 +18,7 @@
 #include "parser/uni_hid_parser_wii.h"
 #include "parser/uni_hid_parser_switch.h"
 #include "parser/uni_hid_parser_xboxone.h"
+#include "parser/uni_hid_parser_stadia.h"
 
 #ifndef CONFIG_BLUEPAD32_PLATFORM_CUSTOM
     #error "Pico W must use BLUEPAD32_PLATFORM_CUSTOM"
