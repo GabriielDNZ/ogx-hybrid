@@ -162,8 +162,15 @@ static bool init()
     return true;
 } 
 
-static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *desc_itf, uint16_t max_len)
-{
+static uint16_t open(uint8_t daddr, uint8_t rhport, const tusb_desc_interface_t* desc_itf, uint16_t max_len) {
+    // ... código interno mantido exatamente igual ...
+    
+    // Onde tiver "return false;", mude para:
+    // return 0;
+    
+    // Onde tiver "return true;", mude para o tamanho total processado:
+    return desc_itf->bLength; 
+}
     TU_LOG1("XInput Open\r\n");
     TU_VERIFY(desc_itf->bNumEndpoints > 0);
 

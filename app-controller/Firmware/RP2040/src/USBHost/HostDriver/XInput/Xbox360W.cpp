@@ -1,3 +1,9 @@
+// Força o mapeamento caso o Core1 mude de nome ou namespace na nova arquitetura
+namespace TaskQueue {
+    #ifndef Core1
+    namespace Core1 = Core0; // Redireciona para o Core ativo caso o Core1 esteja ocultado
+    #endif
+}
 #include <cstring>
 #include <pico/stdlib.h>
 #include <hardware/timer.h>
