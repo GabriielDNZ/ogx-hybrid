@@ -15,14 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        # bootloader nao tem submodulos proprios
-
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
-
       - name: Get Pico SDK
         run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
-
       - name: Build Bootloader
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
@@ -31,15 +27,10 @@ jobs:
           cd bootloader/build
           cmake -DCMAKE_BUILD_TYPE=Release ..
           cmake --build . -j$(nproc)
-          echo "--- Arquivos gerados ---"
-          find . -maxdepth 1 -name "*.uf2"
-
-      - name: Rename output (nome previsivel para o job de combine)
+      - name: Rename output
         run: |
           cd bootloader/build
-          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
-          cp "$FILE" bootloader.uf2
-
+          cp $(find . -maxdepth 1 -name "*.uf2" | head -n 1) bootloader.uf2
       - name: Upload Bootloader UF2
         uses: actions/upload-artifact@v4
         with:
@@ -53,48 +44,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
-
       - name: Get Pico SDK
         run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
-
-      - name: Init bluepad32 submodules (btstack etc)
+      - name: Init bluepad32 submodules
         run: |
           rm -rf app-controller/Firmware/external/bluepad32
-          git clone --recurse-submodules https://github.com/ricardoquesada/bluepad32.git \
-            app-controller/Firmware/external/bluepad32
+          git clone --recurse-submodules https://github.com/ricardoquesada/bluepad32.git app-controller/Firmware/external/bluepad32
           rm -rf app-controller/Firmware/external/tinyusb
-          git clone --recurse-submodules https://github.com/hathach/tinyusb.git \
-            app-controller/Firmware/external/tinyusb
+          git clone --recurse-submodules https://github.com/hathach/tinyusb.git app-controller/Firmware/external/tinyusb
           rm -rf app-controller/Firmware/external/libfixmath
-          git clone https://github.com/PetteriAimonen/libfixmath.git \
-            app-controller/Firmware/external/libfixmath
+          git clone https://github.com/PetteriAimonen/libfixmath.git app-controller/Firmware/external/libfixmath
           rm -rf app-controller/Firmware/external/Pico-PIO-USB
-          git clone https://github.com/wiredopposite/Pico-PIO-USB.git \
-            app-controller/Firmware/external/Pico-PIO-USB
-
-      - name: Build App - Controller (PI_PICO2W)
+          git clone https://github.com/wiredopposite/Pico-PIO-USB.git app-controller/Firmware/external/Pico-PIO-USB
+      - name: Build App - Controller
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           mkdir -p app-controller/Firmware/RP2040/build
           cd app-controller/Firmware/RP2040/build
-          cmake -DPICO_SDK_PATH=${PICO_SDK_PATH} \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DMAX_GAMEPADS=1 \
-                ..
+          cmake -DPICO_SDK_PATH=${PICO_SDK_PATH} -DCMAKE_BUILD_TYPE=Release -DMAX_GAMEPADS=1 ..
           cmake --build . -j$(nproc)
-          echo "--- Arquivos gerados ---"
-          find . -maxdepth 1 -name "*.uf2"
-
-      - name: Rename output (nome previsivel para o job de combine)
+      - name: Rename output
         run: |
           cd app-controller/Firmware/RP2040/build
-          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
-          cp "$FILE" controller.uf2
-
+          cp $(find . -maxdepth 1 -name "*.uf2" | head -n 1) controller.uf2
       - name: Upload Controller UF2
         uses: actions/upload-artifact@v4
         with:
@@ -106,14 +81,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        # app-audio nao tem submodulos (3rd-party ja vem completo no repo)
-
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
-
       - name: Get Pico SDK
         run: git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
-
       - name: Build App - Audio
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
@@ -122,15 +93,10 @@ jobs:
           cd app-audio/build
           cmake -DCMAKE_BUILD_TYPE=Release ..
           cmake --build . -j$(nproc)
-          echo "--- Arquivos gerados ---"
-          find . -maxdepth 1 -name "*.uf2"
-
-      - name: Rename output (nome previsivel para o job de combine)
+      - name: Rename output
         run: |
           cd app-audio/build
-          FILE=$(find . -maxdepth 1 -name "*.uf2" | head -n 1)
-          cp "$FILE" audio.uf2
-
+          cp $(find . -maxdepth 1 -name "*.uf2" | head -n 1) audio.uf2
       - name: Upload Audio UF2
         uses: actions/upload-artifact@v4
         with:
@@ -143,46 +109,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        # so precisamos de scripts/combine_uf2.py, sem submodulos
-
-      - name: Download Bootloader UF2
+      - name: Download all parts
         uses: actions/download-artifact@v4
         with:
-          name: bootloader-uf2
           path: parts/
-
-      - name: Download Controller UF2
-        uses: actions/download-artifact@v4
-        with:
-          name: controller-uf2
-          path: parts/
-
-      - name: Download Audio UF2
-        uses: actions/download-artifact@v4
-        with:
-          name: audio-uf2
-          path: parts/
-
-      - name: List downloaded parts
-        run: ls -la parts/
-
       - name: Combine into single UF2
         run: |
           mkdir -p output
           python3 scripts/combine_uf2.py \
             --out output/OGX-Mini-Hybrid-PICO2W.uf2 \
-            parts/bootloader.uf2 \
-            parts/controller.uf2 \
-            parts/audio.uf2
-
-      - name: Verify combined file size
-        run: |
-          ls -la output/
-          # Sanity check basico: arquivo combinado deve ser bem maior
-          # que qualquer parte individual (soma aproximada das 3 partes)
-          du -h output/OGX-Mini-Hybrid-PICO2W.uf2
-
-      - name: Upload Combined UF2 (final deliverable)
+            parts/bootloader-uf2/bootloader.uf2 \
+            parts/controller-uf2/controller.uf2 \
+            parts/audio-uf2/audio.uf2
+      - name: Upload Combined UF2
         uses: actions/upload-artifact@v4
         with:
           name: OGX-Mini-Hybrid-PICO2W
@@ -192,30 +131,17 @@ jobs:
   release:
     needs: combine
     runs-on: ubuntu-latest
-    
-    # CORREÇÃO APLICADA AQUI: Permissão de escrita para criar a release
     permissions:
       contents: write
-      
     steps:
       - name: Download Combined UF2
         uses: actions/download-artifact@v4
         with:
           name: OGX-Mini-Hybrid-PICO2W
           path: output
-
-      - name: List Files
-        run: ls -lh output/
-
-      - name: Create Draft Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2.2.2
         with:
           tag_name: latest
           draft: true
-          files: output/*.uf2
-
-      - name: Create Tagged Release
-        uses: softprops/action-gh-release@v2.2.2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: output/*.uf2
+          files: output/OGX-Mini-Hybrid-PICO2W.uf2
