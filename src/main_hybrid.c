@@ -10,6 +10,7 @@
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "pico/cyw43_arch.h"
+#include "pico/flash.h"
 #include "hardware/vreg.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"

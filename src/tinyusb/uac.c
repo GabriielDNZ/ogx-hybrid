@@ -32,8 +32,6 @@
 
  #include "../btstack/btstack_avdtp_source.h"
  #include "pico/flash.h"
- #include "flash_map.h"
- #include "boot_confirm.h"
 
 
  
@@ -397,14 +395,6 @@ void tinyusb_control_task(void){
    {
     usb_stop_delay = 0;
     set_usb_streaming(true);
-
-    // HIBRIDO: receber dados de audio reais do host (PS5) e a prova
-    // mais confiavel de que estamos no modo certo. Confirma ao
-    // bootloader que o modo AUDIO funcionou, para ele ser preferido
-    // no proximo boot. Seguro de chamar repetidamente (so escreve na
-    // flash quando o modo lembrado muda).
-    boot_confirm_mode_success(MODE_AUDIO);
-
     if (current_resolution == 16)
     {
       int16_t *src = (int16_t *)spk_buf;

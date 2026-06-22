@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - name: Install Dependencies
         run: |
@@ -50,7 +50,7 @@ jobs:
           find . -maxdepth 1 -name "*.uf2"
 
       - name: Upload UF2
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: OGX-BT-Hybrid-PICO2W
           path: build/*.uf2
