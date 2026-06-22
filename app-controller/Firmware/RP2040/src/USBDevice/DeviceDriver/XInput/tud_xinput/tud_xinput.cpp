@@ -93,7 +93,7 @@ static bool xfer_cb(uint8_t rhport, uint8_t ep_addr, xfer_result_t result, uint3
         // mandou uma transferencia para o endpoint OUT (rumble/LED).
         // E aqui, nao em receive_report(), que e o sinal confiavel.
         out_report_received_ = true;
-        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_out_, ep_out_buffer_, ENDPOINT_SIZE);
+        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_out_, ep_out_buffer_, ENDPOINT_SIZE, false);
     }
 	return true;
 }
@@ -148,7 +148,7 @@ bool send_report(const uint8_t *report, uint16_t len)
     {
         std::memcpy(ep_in_buffer_, report, std::min(len, ENDPOINT_SIZE));
         usbd_edpt_claim(BOARD_TUD_RHPORT, endpoint_in_);
-        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_in_, ep_in_buffer_, sizeof(XInput::InReport));
+        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_in_, ep_in_buffer_, sizeof(XInput::InReport), false);
         usbd_edpt_release(BOARD_TUD_RHPORT, endpoint_in_);
         return true;
     }
@@ -160,7 +160,7 @@ bool receive_report(uint8_t *report, uint16_t len)
     if (receive_report_ready())
     {
         usbd_edpt_claim(BOARD_TUD_RHPORT, endpoint_out_);
-        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_out_, ep_out_buffer_, ENDPOINT_SIZE);
+        usbd_edpt_xfer(BOARD_TUD_RHPORT, endpoint_out_, ep_out_buffer_, ENDPOINT_SIZE, false);
         usbd_edpt_release(BOARD_TUD_RHPORT, endpoint_out_);
     }
 

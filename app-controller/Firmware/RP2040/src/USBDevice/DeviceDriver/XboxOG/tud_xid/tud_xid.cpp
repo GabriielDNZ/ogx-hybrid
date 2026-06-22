@@ -393,7 +393,7 @@ bool send_report(uint8_t index, const uint8_t* report, uint16_t len)
 
     std::memcpy(interfaces_[index].ep_in_buffer.data(), report, size);
 
-    return usbd_edpt_xfer(BOARD_TUD_RHPORT, interfaces_[index].ep_in, interfaces_[index].ep_in_buffer.data(), size);
+    return usbd_edpt_xfer(BOARD_TUD_RHPORT, interfaces_[index].ep_in, interfaces_[index].ep_in_buffer.data(), size, false);
 }
 
 bool receive_report(uint8_t index, uint8_t *report, uint16_t len)
@@ -406,7 +406,7 @@ bool receive_report(uint8_t index, uint8_t *report, uint16_t len)
 
     if (tud_ready() && !usbd_edpt_busy(BOARD_TUD_RHPORT, interfaces_[index].ep_out))
     {
-        usbd_edpt_xfer(BOARD_TUD_RHPORT, interfaces_[index].ep_out, interfaces_[index].ep_out_buffer.data(), size);
+        usbd_edpt_xfer(BOARD_TUD_RHPORT, interfaces_[index].ep_out, interfaces_[index].ep_out_buffer.data(), size, false);
     }
 
     std::memcpy(report, interfaces_[index].ep_out_buffer.data(), size);
