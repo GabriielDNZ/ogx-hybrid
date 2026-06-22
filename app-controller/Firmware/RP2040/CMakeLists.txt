@@ -186,13 +186,14 @@ if(EN_BLUETOOTH)
         ${BTSTACK_ROOT}/3rd-party/bluedroid/encoder/include
         ${BTSTACK_ROOT}/3rd-party/bluedroid/decoder/include
     )
-    # CORREÇÃO EFETUADA: Adicionado 'pico_btstack' para fornecer o 'hci_event_builder' ausente no link do RP2350
+    # CORREÇÃO EFETUADA: Substituído pico_btstack por run_loop e chipset corretos para o RP2350
     list(APPEND LIBS_BOARD
-        pico_btstack
         pico_cyw43_arch_none
         pico_btstack_ble
         pico_btstack_classic
         pico_btstack_cyw43
+        pico_btstack_run_loop_background
+        pico_btstack_chipset_cyw43
         bluepad32
     )
 endif()
