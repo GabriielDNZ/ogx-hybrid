@@ -65,8 +65,13 @@ jobs:
           rm -rf app-controller/Firmware/external/bluepad32
           git clone https://github.com/ricardoquesada/bluepad32.git \
             app-controller/Firmware/external/bluepad32
-          cd app-controller/Firmware/external/bluepad32
-          git submodule update --init --recursive
+          # Fixar btstack no commit exato que o OGX-Mini original usa
+          # (identificado pelo patch btstack_l2cap.diff: index 9ffa9c102)
+          rm -rf app-controller/Firmware/external/bluepad32/external/btstack
+          git clone https://github.com/bluekitchen/btstack.git \
+            app-controller/Firmware/external/bluepad32/external/btstack
+          cd app-controller/Firmware/external/bluepad32/external/btstack
+          git checkout 9ffa9c102
           cd ${{ github.workspace }}
           rm -rf app-controller/Firmware/external/tinyusb
           git clone https://github.com/hathach/tinyusb.git \
