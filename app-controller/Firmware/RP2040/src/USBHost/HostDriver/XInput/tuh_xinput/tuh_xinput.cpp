@@ -162,19 +162,12 @@ static bool init()
     return true;
 } 
 
-static uint16_t open(uint8_t dev_addr, const tusb_desc_interface_t* desc_itf, uint16_t max_len) {
-    // 1. Verificações iniciais da TinyUSB utilizando as macros internas
-    TU_VERIFY(desc_itf->bNumEndpoints > 0);
-
-    // ... Todo o resto do código original interno da função permanece aqui dentro ...
-    // (Geralmente contendo os testes de 'if (desc_itf->bInterfaceSubClass == 0x5D ...)')
-
-    // 2. Modifique apenas o final da função:
-    // Onde originalmente estava 'return true;', altere para retornar o tamanho lido:
-    return desc_itf->bLength;
-}
+static uint16_t open(uint8_t daddr, uint8_t rhport, const tusb_desc_interface_t* desc_itf, uint16_t max_len) 
+{
+    uint8_t dev_addr = daddr;
+    
     TU_LOG1("XInput Open\r\n");
-    TU_VERIFY(desc_itf->bNumEndpoints > 0);
+    TU_VERIFY(desc_itf->bNumEndpoints > 0, 0);
 
     DevType dev_type = DevType::UNKNOWN;
     ItfType itf_type = ItfType::UNKNOWN;
@@ -200,10 +193,10 @@ static uint16_t open(uint8_t dev_addr, const tusb_desc_interface_t* desc_itf, ui
         dev_type = DevType::XBOXOG;
     }
 
-    TU_VERIFY(dev_type != DevType::UNKNOWN && itf_type != ItfType::UNKNOWN);
+    TU_VERIFY(dev_type != DevType::UNKNOWN && itf_type != ItfType::UNKNOWN, 0);
 
     Interface* interface = get_free_itf(dev_addr);
-    TU_VERIFY(interface != nullptr);
+    TU_VERIFY(interface != nullptr, 0);
 
     const uint8_t *p_desc = reinterpret_cast<const uint8_t*>(desc_itf);
     int endpoint = 0;
@@ -243,7 +236,7 @@ static uint16_t open(uint8_t dev_addr, const tusb_desc_interface_t* desc_itf, ui
         p_desc = tu_desc_next(p_desc);
     }
 
-    return true;
+    return desc_itf->bLength;
 }
 
 static bool set_config(uint8_t dev_addr, uint8_t itf_num)
@@ -282,8 +275,9 @@ static bool set_config(uint8_t dev_addr, uint8_t itf_num)
 static bool xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result, uint32_t xferred_bytes)
 {
     Interface* interface = get_itf_by_ep(dev_addr, ep_addr);
+    TU_VERIFY(interface != nullptr);
     uint8_t instance = get_instance_by_itf_num(dev_addr, interface->itf_num);
-    TU_VERIFY(interface != nullptr && instance != INVALID_IDX);
+    TU_VERIFY(instance != INVALID_IDX);
     
     const uint8_t dir = tu_edpt_dir(ep_addr);
 
@@ -410,7 +404,7 @@ void close(uint8_t dev_addr)
     TU_LOG1("XInput close\r\n");
 
     Device* device = get_device_by_addr(dev_addr);
-    TU_VERIFY(device != nullptr, );
+    TU_VERIFY(device != nullptr); // Correção de macro para função void
 
     for (uint8_t i = 0; i < device->interfaces.size(); ++i)
     {
@@ -531,8 +525,8 @@ bool set_rumble(uint8_t dev_addr, uint8_t instance, uint8_t rumble_l, uint8_t ru
             break;
         case DevType::XBOXONE:
             std::memcpy(buffer, XboxOne::RUMBLE, sizeof(XboxOne::RUMBLE));
-            buffer[8] = rumble_l / 2; // 0 - 128
-            buffer[9] = rumble_r / 2; // 0 - 128
+            buffer[8] = rumble_l / 2;
+            buffer[9] = rumble_r / 2;
             len = sizeof(XboxOne::RUMBLE);
             break;
         case DevType::XBOXOG:
@@ -559,9 +553,10 @@ void xbox360_chatpad_init(uint8_t address, uint8_t instance)
 {
     TU_LOG1("XInput Chatpad Init\r\n");
 
-    Interface* interface = get_itf_by_itf_num(address, instance);
+    // Correção: Mapeia corretamente usando a instância antes de verificar conexões
+    Interface* interface = get_itf_by_instance(address, instance);
     TU_VERIFY(interface != nullptr && interface->connected, );
-    TU_VERIFY(interface->dev_type == DevType::XBOX360W, ); //Only supported on Xbox 360 Wireless atm, wired is more complicated
+    TU_VERIFY(interface->dev_type == DevType::XBOX360W, );
 
     send_report(address, instance, Xbox360W::CONTROLLER_INFO, sizeof(Xbox360W::CONTROLLER_INFO));
     wait_for_tx_complete(address, interface->ep_out);
@@ -583,7 +578,8 @@ void xbox360_chatpad_init(uint8_t address, uint8_t instance)
 
 bool xbox360_chatpad_keepalive(uint8_t address, uint8_t instance)
 {   
-    Interface* interface = get_itf_by_itf_num(address, instance);
+    // Correção: Mapeia corretamente usando a instância
+    Interface* interface = get_itf_by_instance(address, instance);
     TU_VERIFY(interface != nullptr, false);
     TU_VERIFY(interface->connected && interface->chatpad_inited, false);
 
