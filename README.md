@@ -1,102 +1,151 @@
-# OGX-Mini + USB-BT-Audio — Firmware Híbrido (Pico 2 W)
+# OGX_BT_Hybrid — Firmware para Raspberry Pi Pico 2W
 
-Este projeto faz o Pico 2 W decidir sozinho, ao ligar, se ele deve se
-comportar como **controle de Xbox** (recebendo input de um controle
-pareado por Bluetooth) ou como **placa de som USB** que retransmite
-áudio do PS5 por Bluetooth para uma caixa de som (ex: JBL).
+Firmware híbrido que combina dois projetos em um único `.uf2`:
 
-Não existe um botão para trocar de modo: o Pico tenta o último modo
-que funcionou da última vez; se não for reconhecido em alguns
-segundos, ele troca para o outro modo sozinho e tenta de novo. Depois
-de algumas trocas, ele aprende e passa a ir direto no modo certo.
+- **OGX-Mini**: recebe controle via Bluetooth e envia como XboxOG XID para o Xbox 360
+- **PicoW-USB-BT-Audio**: recebe áudio USB do PS5 e transmite via Bluetooth para o JBL Tune Flex 2 (ou qualquer fone A2DP)
 
-## Como gerar o arquivo .uf2 final (sem instalar nada no seu computador)
+---
 
-Você só precisa de uma conta gratuita no GitHub. O próprio GitHub vai
-compilar o firmware para você, na nuvem.
+## Estrutura do ZIP
 
-### Passo 1 — Criar uma conta no GitHub (se ainda não tiver)
-Acesse https://github.com/signup e crie uma conta gratuita.
+Este ZIP contém **apenas os arquivos customizados**. As dependências externas precisam ser clonadas separadamente (instruções abaixo).
 
-### Passo 2 — Criar um novo repositório com este código
-1. Acesse https://github.com/new
-2. Dê um nome ao repositório (ex: `meu-ogx-hibrido`)
-3. Deixe como **Public** (necessário para o plano gratuito de Actions)
-4. Clique em **Create repository**
-5. Na página do repositório recém-criado, clique no link **"uploading
-   an existing file"** (ou vá em Add file → Upload files)
-6. Arraste TODAS as pastas e arquivos deste projeto (bootloader/,
-   app-controller/, app-audio/, scripts/, shared/, .github/,
-   .gitmodules) para a área de upload
-7. Role para baixo e clique em **Commit changes**
+```
+CMakeLists.txt              ← Build principal híbrido
+btstack_config.h            ← BTstack config combinado
+tusb_config.h               ← TinyUSB config (referência; o real está em hybrid_config/)
+FWDefines.cmake
+pico_sdk_import.cmake
+hybrid_config/
+  tusb_config_hybrid.h      ← Config TinyUSB híbrido (XID + UAC2)
+src/
+  main_hybrid.c             ← main() dual-core
+  pico_w_led.c / .h
+  btstack/                  ← A2DP audio source (do PicoW-USB-BT-Audio)
+  tinyusb/                  ← UAC2 device (do PicoW-USB-BT-Audio)
+ogxmini_src/                ← Fontes do OGX-Mini + arquivos híbridos
+  USBDevice/
+    HybridDescriptors.h/cpp ← Descritores USB combinados (XID + UAC2)
+  OGXMini/Board/
+    PicoW_Hybrid.cpp        ← Split initialize_usb() / initialize_bluetooth()
+  hybrid_wrappers.cpp       ← Wrappers C para funções C++ do OGX-Mini
+  Bluepad32/Bluepad32.cpp   ← setup_only() adicionado para modo híbrido
+external/patches/
+  btstack_l2cap.diff        ← Patch do OGX-Mini no btstack l2cap
+external/bluepad32/src/components/bluepad32/
+  bt/uni_bt_setup.c         ← PATCHED: suporte a HYBRID_BT_ALREADY_INITIALIZED
+  include/sdkconfig.h       ← Standalone (sem dependência de Board/Config.h)
+```
 
-   **Importante:** o upload pela interface web do GitHub não
-   inicializa submódulos automaticamente. Se after o upload o
-   workflow falhar reclamando de "submodule" vazio, peça ajuda a
-   alguém com Git instalado para rodar, dentro da pasta do projeto:
-   ```
-   git init
-   git add .
-   git submodule add https://github.com/ricardoquesada/bluepad32.git app-controller/Firmware/external/bluepad32
-   git submodule add https://github.com/hathach/tinyusb.git app-controller/Firmware/external/tinyusb
-   git submodule add https://github.com/wiredopposite/Pico-PIO-USB.git app-controller/Firmware/external/Pico-PIO-USB
-   git submodule add https://github.com/PetteriAimonen/libfixmath.git app-controller/Firmware/external/libfixmath
-   git commit -m "projeto hibrido"
-   git remote add origin <URL do seu repositorio>
-   git push -u origin main
-   ```
+---
 
-### Passo 3 — Deixar o GitHub compilar
-1. No seu repositório, clique na aba **Actions** (no topo da página)
-2. Você verá um workflow chamado **"Build Hybrid OGX-Mini +
-   USB-BT-Audio"** rodando automaticamente (foi disparado pelo upload)
-3. Clique nele e aguarde — leva alguns minutos. Você verá 3 etapas
-   rodando em paralelo (bootloader, controller, audio), seguidas de
-   uma etapa "combine" que junta tudo
-4. Quando tudo ficar verde (✓), role até o final da página e baixe o
-   arquivo em **Artifacts** chamado **`OGX-Mini-Hybrid-PICO2W`**
-5. Dentro do .zip baixado está o arquivo `OGX-Mini-Hybrid-PICO2W.uf2`
-   — esse é o firmware final, pronto para gravar no Pico
+## Como compilar
 
-### Passo 4 — Gravar no Pico 2 W
-1. Desconecte o Pico de tudo
-2. Segure o botão **BOOTSEL** do Pico e, ainda segurando, conecte o
-   cabo USB no computador
-3. Solte o botão — uma unidade de armazenamento chamada `RP2350` (ou
-   similar) vai aparecer no seu computador, como se fosse um pendrive
-4. Arraste o arquivo `OGX-Mini-Hybrid-PICO2W.uf2` para dentro dessa
-   unidade
-5. O Pico vai gravar e reiniciar sozinho automaticamente
+### 1. Pré-requisitos
 
-Pronto — agora é só plugar no Xbox ou no PS5 e testar.
+```bash
+# Instalar toolchain ARM + cmake
+sudo apt install gcc-arm-none-eabi cmake ninja-build python3 git
 
-## Como funciona por dentro (resumo técnico)
+# Clonar o Pico SDK 2.1.0
+git clone --branch 2.1.0 --depth 1 \
+  https://github.com/raspberrypi/pico-sdk.git ~/pico-sdk
+cd ~/pico-sdk && git submodule update --init --depth 1
+```
 
-- A flash de 4MB do Pico 2 W é dividida em 3 partes: um **bootloader**
-  pequeno no início, depois o firmware de **controle**, depois o
-  firmware de **áudio**. Ver `shared/flash_layout.cmake` para os
-  endereços exatos.
-- O bootloader lê 1 setor de flash reservado (`shared/flash_map.h`)
-  para saber qual foi o último modo que funcionou, e pula a execução
-  para o firmware correspondente.
-- Cada app, ao detectar que o host (Xbox ou PS5) realmente o aceitou,
-  grava essa confirmação na flash (ver `shared/boot_confirm.h`).
-- Se um app travar ou não for reconhecido em alguns segundos, um
-  watchdog reinicia o Pico, e o bootloader tenta de novo / eventualmente
-  alterna para o outro modo após 3 tentativas falhas seguidas.
+### 2. Montar a estrutura de dependências
 
-## Primeiro boot ou troca de console
+Crie uma pasta `hybrid/` e extraia o ZIP dentro dela. Depois:
 
-Na primeira vez, ou ao trocar de console pela primeira vez, pode levar
-até ~25 segundos para o Pico "descobrir" o modo certo (algumas
-tentativas + trocas). Depois disso, ele lembra e vai direto.
+```bash
+cd hybrid/
 
-## Limitações conhecidas / riscos
+# Criar pasta external/
+mkdir -p external
 
-Este firmware foi escrito e revisado com cuidado, mas **não pôde ser
-compilado nem testado em hardware real durante o desenvolvimento**
-(ambiente de desenvolvimento sem acesso à internet/toolchain ARM). É
-possível que o primeiro build no GitHub Actions revele algum erro de
-compilação que precise de um pequeno ajuste. Se isso acontecer, copie
-a mensagem de erro completa da aba Actions — ela ajuda a identificar
-exatamente o que corrigir.
+# Clonar bluepad32 (o btstack interno é submodule)
+git clone --depth 1 https://github.com/ricardoquesada/bluepad32.git \
+  external/bluepad32
+cd external/bluepad32
+git submodule update --init --depth 1
+cd ../..
+
+# Aplicar o patch no btstack do bluepad32
+cd external/bluepad32/external/btstack
+git fetch --depth 50 origin 5d4d8cc7b1d35a90bbd6d5ffd2d3050b2bfc861c
+git checkout 5d4d8cc7b1d35a90bbd6d5ffd2d3050b2bfc861c
+# Aplicar patch l2cap
+patch -p1 < ../../../../external/patches/btstack_l2cap.diff
+cd ../../../..
+
+# Clonar tinyusb (versão mais nova, usada como referência no external)
+git clone --depth 1 https://github.com/hathach/tinyusb.git \
+  external/tinyusb
+
+# Clonar libfixmath
+git clone --depth 1 https://github.com/PetteriAimonen/libfixmath.git \
+  external/libfixmath
+
+# Clonar Pico-PIO-USB (versão do OGX-Mini)
+git clone --depth 1 https://github.com/wiredopposite/Pico-PIO-USB.git \
+  external/Pico-PIO-USB
+
+# Clonar OGX-Mini (para pegar os fontes em src/)
+git clone --depth 1 https://github.com/wiredopposite/OGX-Mini.git /tmp/ogx
+cp -r /tmp/ogx/Firmware/RP2040/src/* ogxmini_src/
+# IMPORTANTE: sobrescrever com os arquivos patched do ZIP
+# (os arquivos do ZIP já estão em ogxmini_src/ com as modificações)
+
+# Clonar PicoW-USB-BT-Audio (para pegar 3rd-party/)
+git clone --depth 1 https://github.com/wasdwasd0105/PicoW-usb2bt-audio.git \
+  /tmp/btaudio
+cp -r /tmp/btaudio/3rd-party ./
+```
+
+### 3. Copiar o uni_bt_setup.c patched
+
+O arquivo `external/bluepad32/src/components/bluepad32/bt/uni_bt_setup.c`
+que veio no ZIP **substitui** o original do bluepad32. Ele já está no lugar certo
+se você extraiu o ZIP na pasta `hybrid/`.
+
+### 4. Compilar
+
+```bash
+cd hybrid/
+mkdir build && cd build
+cmake .. -DPICO_SDK_PATH=~/pico-sdk -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+```
+
+O arquivo `OGX_BT_Hybrid.uf2` será gerado em `build/`.
+
+### 5. Gravar no Pico 2 W
+
+1. Segure o botão **BOOTSEL** no Pico 2 W
+2. Plugue o cabo USB no computador (aparece como pendrive `RPI-RP2`)
+3. Arraste o `OGX_BT_Hybrid.uf2` para dentro
+
+---
+
+## Arquitetura
+
+```
+Core 0                          Core 1
+──────────────────────────      ──────────────────────────
+TinyUSB USB device              BTstack run loop
+  ├─ Interface 0: XID           ├─ A2DP Source (áudio → JBL)
+  │   (Xbox 360 controle)       └─ Bluepad32 HID
+  └─ Interfaces 1+2: UAC2           (controle BT → Core0)
+      (PS5 áudio input)
+Timer 500µs: tinyusb_task()
+Watchdog: 2s
+```
+
+## Notas
+
+- O JBL Tune Flex 2 deve estar no **Modo Vídeo** (app JBL Headphones)
+  para menor latência (~90-110ms)
+- O controle Bluetooth precisa ser pareado uma vez após gravar o firmware
+- Ao plugar no **Xbox 360**, o PS5 não reconhece o dispositivo (e vice-versa)
+  — isso é o comportamento esperado: cada console vê apenas a interface que conhece
