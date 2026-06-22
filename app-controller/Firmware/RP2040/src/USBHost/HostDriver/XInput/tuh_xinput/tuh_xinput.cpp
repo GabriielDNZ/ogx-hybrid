@@ -23,7 +23,8 @@ std::array<Device, MAX_DEVICES> devices_;
 
 TU_ATTR_ALWAYS_INLINE static inline Device* get_device_by_addr(uint8_t dev_addr)
 {
-    TU_VERIFY((dev_addr <= devices_.size() && dev_addr > 0), nullptr);
+    // CORREÇÃO: Garante limites estritos para evitar estouro de índice no array
+    TU_VERIFY((dev_addr > 0 && dev_addr <= MAX_DEVICES), nullptr);
     return &devices_[dev_addr - 1];
 }
 
@@ -404,7 +405,7 @@ void close(uint8_t dev_addr)
     TU_LOG1("XInput close\r\n");
 
     Device* device = get_device_by_addr(dev_addr);
-    TU_VERIFY(device != nullptr); // Correção de macro para função void
+    TU_VERIFY(device != nullptr, ); // Correção de macro para função void
 
     for (uint8_t i = 0; i < device->interfaces.size(); ++i)
     {
@@ -546,15 +547,16 @@ bool set_rumble(uint8_t dev_addr, uint8_t instance, uint8_t rumble_l, uint8_t ru
     {
         wait_for_tx_complete(dev_addr, interface->ep_out);
     }
-    return true;
+    // CORREÇÃO: Retorna o status de envio real em vez de mascarar com 'true' fixo
+    return ret;
 }
 
 void xbox360_chatpad_init(uint8_t address, uint8_t instance)
 {
     TU_LOG1("XInput Chatpad Init\r\n");
 
-    // Correção: Mapeia corretamente usando a instância antes de verificar conexões
     Interface* interface = get_itf_by_instance(address, instance);
+    // CORREÇÃO: Ajustada a sintaxe do macro TU_VERIFY para funções com retorno void (, )
     TU_VERIFY(interface != nullptr && interface->connected, );
     TU_VERIFY(interface->dev_type == DevType::XBOX360W, );
 
@@ -578,7 +580,6 @@ void xbox360_chatpad_init(uint8_t address, uint8_t instance)
 
 bool xbox360_chatpad_keepalive(uint8_t address, uint8_t instance)
 {   
-    // Correção: Mapeia corretamente usando a instância
     Interface* interface = get_itf_by_instance(address, instance);
     TU_VERIFY(interface != nullptr, false);
     TU_VERIFY(interface->connected && interface->chatpad_inited, false);
