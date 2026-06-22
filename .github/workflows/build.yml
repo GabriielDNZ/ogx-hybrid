@@ -27,21 +27,30 @@ jobs:
           git clone --branch ${{ env.PICO_SDK_VERSION }} --recurse-submodules \
             https://github.com/raspberrypi/pico-sdk.git
 
-      - name: Get bluepad32 + btstack (versao compativel)
+      - name: Get bluepad32 + btstack
         run: |
           rm -rf external/bluepad32
           git clone https://github.com/ricardoquesada/bluepad32.git external/bluepad32
-          # btstack: usar versao que tem hci_event_builder.c (v1.6.2+)
-          # mas aplicar o patch do OGX-Mini no l2cap
           rm -rf external/bluepad32/external/btstack
           git clone --branch v1.6.2 --depth 1 \
             https://github.com/bluekitchen/btstack.git \
             external/bluepad32/external/btstack
-          # Aplicar patch do l2cap (necessario para OGX-Mini)
           cd external/bluepad32/external/btstack
-          patch -p1 < ${{ github.workspace }}/external/patches/btstack_l2cap.diff || true
-          cd ${{ github.workspace }}
-          # libfixmath e Pico-PIO-USB
+          patch -p1 < $GITHUB_WORKSPACE/external/patches/btstack_l2cap.diff || true
+          cd $GITHUB_WORKSPACE
+          # sdkconfig.h customizado para bluepad32 rodar no Pico (nao ESP32)
+          cat > external/bluepad32/src/components/bluepad32/include/sdkconfig.h << 'SDKEOF'
+#ifndef _SDK_CONFIG_H_
+#define _SDK_CONFIG_H_
+#define CONFIG_BLUEPAD32_MAX_DEVICES    1
+#define CONFIG_BLUEPAD32_MAX_ALLOWLIST  4
+#define CONFIG_BLUEPAD32_GAP_SECURITY   1
+#define CONFIG_BLUEPAD32_ENABLE_BLE_BY_DEFAULT 1
+#define CONFIG_BLUEPAD32_PLATFORM_CUSTOM
+#define CONFIG_TARGET_PICO_W
+#define CONFIG_BLUEPAD32_LOG_LEVEL 0
+#endif
+SDKEOF
           rm -rf external/libfixmath
           git clone https://github.com/PetteriAimonen/libfixmath.git external/libfixmath
           rm -rf external/Pico-PIO-USB
