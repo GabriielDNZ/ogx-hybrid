@@ -88,81 +88,84 @@ set(LIBS_BOARD
 
 set(INC_DIRS_BOARD "")
 
-# Config options
 set(MAX_GAMEPADS 1 CACHE STRING "Set number of gamepads, 1 to 4")
 if (MAX_GAMEPADS GREATER 4 OR MAX_GAMEPADS LESS 1)
     message(FATAL_ERROR "MAX_GAMEPADS must be between 1 and 4")
 endif()
 add_definitions(-DMAX_GAMEPADS=${MAX_GAMEPADS})
 
-set(OGXM_BOARD "PI_PICO2W" CACHE STRING "Fixado em PI_PICO2W neste fork hibrido")
+set(OGXM_BOARD "PI_PICO2W" CACHE STRING "Fixado em PI_PICO2W")
 set(FLASH_SIZE_MB 4)
 set(PICO_BOARD none)
 
 if (OGXM_BOARD STREQUAL "PI_PICO")
     add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICO)
     set(EN_USB_HOST TRUE)
 
 elseif (OGXM_BOARD STREQUAL "PI_PICO2")
     add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICO2)
     set(EN_USB_HOST TRUE)
     set(PICO_PLATFORM rp2350)
     set(FLASH_SIZE_MB 4)
 
 elseif(OGXM_BOARD STREQUAL "PI_PICOW")
     add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICOW=1)
+    add_compile_definitions(OGXM_BOARD=PI_PICOW)
     set(EN_BLUETOOTH TRUE)
-    set(EN_USB_HOST TRUE) # <--- Força ativação do Host USB para evitar referências indefinidas
+    set(EN_USB_HOST TRUE)
     set(PICO_BOARD pico_w)
 
 elseif(OGXM_BOARD STREQUAL "PI_PICO2W")
     add_compile_definitions(CONFIG_OGXM_BOARD_PI_PICO2W=1)
+    # Aqui aplicamos o mapeamento para herdar a lógica interna de PI_PICOW no C++
+    add_compile_definitions(OGXM_BOARD=PI_PICOW)
     set(EN_BLUETOOTH TRUE)
-    set(EN_USB_HOST TRUE) # <--- CORREÇÃO: Pico 2W usa bluetooth e as conexões USB Host simultaneamente
+    set(EN_USB_HOST TRUE)
     set(PICO_BOARD pico2_w)
     set(PICO_PLATFORM rp2350)
     set(FLASH_SIZE_MB 4)
 
 elseif(OGXM_BOARD STREQUAL "ADAFRUIT_FEATHER")
     add_compile_definitions(CONFIG_OGXM_BOARD_ADAFRUIT_FEATHER=1)
+    add_compile_definitions(OGXM_BOARD=ADAFRUIT_FEATHER)
     set(EN_USB_HOST TRUE)
     set(EN_RGB TRUE)
     set(FLASH_SIZE_MB 8)
 
 elseif(OGXM_BOARD STREQUAL "RP2040_ZERO")
     add_compile_definitions(CONFIG_OGXM_BOARD_RP2040_ZERO=1)
+    add_compile_definitions(OGXM_BOARD=RP2040_ZERO)
     set(EN_USB_HOST TRUE)
     set(EN_RGB TRUE)
 
 elseif(OGXM_BOARD STREQUAL "EXTERNAL_4CH_I2C")
     add_compile_definitions(CONFIG_OGXM_BOARD_EXTERNAL_4CH=1)
+    add_compile_definitions(OGXM_BOARD=EXTERNAL_4CH_I2C)
     set(EN_USB_HOST TRUE)
     set(EN_4CH TRUE)
     set(EN_RGB TRUE)
 
 elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
     add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C=1)
+    add_compile_definitions(OGXM_BOARD=ESP32_BLUEPAD32_I2C)
     set(EN_ESP32 TRUE)
     set(EN_UART_BRIDGE TRUE)
     if(OGXM_RETAIL STREQUAL "TRUE")
-        message(STATUS "Retail mode enabled.")
         add_compile_definitions(OGXM_RETAIL=1)
     endif()
 
 elseif(OGXM_BOARD STREQUAL "ESP32_BLUERETRO_I2C")
     add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUERETRO_I2C=1)
+    add_compile_definitions(OGXM_BOARD=ESP32_BLUERETRO_I2C)
     set(EN_ESP32 TRUE)
     set(EN_BLUERETRO_I2C TRUE)
     set(EN_UART_BRIDGE TRUE)
     if(OGXM_RETAIL STREQUAL "TRUE")
-        message(STATUS "Retail mode enabled.")
         add_compile_definitions(OGXM_RETAIL=1)
     endif()
-else()
-    message(FATAL_ERROR "Invalid OGXM_BOARD value. See options in src/board_config.h")
 endif()
-
-add_definitions(-DOGXM_BOARD=${OGXM_BOARD})
 
 if(EN_USB_HOST)
     message(STATUS "USB host enabled.")
@@ -212,7 +215,7 @@ if(EN_BLUETOOTH)
     )
     list(APPEND LIBS_BOARD
         pico_cyw43_arch_none
-        pico_btstack_ble       # <--- CORREÇÃO: Necessário para suprir gatt_client e hci_event_builder
+        pico_btstack_ble
         pico_btstack_classic
         pico_btstack_cyw43
         bluepad32
@@ -221,7 +224,6 @@ endif()
 
 if(EN_RGB)
     add_compile_definitions(CONFIG_EN_RGB=1)
-    message(STATUS "RGB enabled.")
     list(APPEND SOURCES_BOARD
         ${SRC}/Board/Pico_WS2812/WS2812.cpp
     )
@@ -232,7 +234,6 @@ endif()
 
 if(EN_4CH)
     add_compile_definitions(CONFIG_EN_4CH=1)
-    message(STATUS "4CH enabled.")
     list(APPEND LIBS_BOARD
         hardware_i2c
         pico_i2c_slave
@@ -241,7 +242,6 @@ endif()
 
 if(EN_ESP32)
     add_compile_definitions(CONFIG_EN_ESP32=1)
-    message(STATUS "ESP32 enabled.")
     if (NOT EN_BLUERETRO_I2C)
         list(APPEND LIBS_BOARD
             pico_i2c_slave
@@ -254,7 +254,6 @@ endif()
 
 if(EN_UART_BRIDGE)
     add_compile_definitions(CONFIG_EN_UART_BRIDGE=1)
-    message(STATUS "UART bridge enabled.")
     list(APPEND SOURCES_BOARD
         ${SRC}/USBDevice/DeviceDriver/UARTBridge/UARTBridge.cpp
         ${SRC}/USBDevice/DeviceDriver/UARTBridge/uart_bridge/uart_bridge.c
@@ -276,7 +275,6 @@ add_compile_definitions(HYBRID_APP_FLASH_OFFSET=${FLASH_OFFSET})
 add_compile_definitions(HYBRID_APP_FLASH_LENGTH=${FLASH_LENGTH})
 
 if(EXISTS ${SRC}/USBDevice/DeviceDriver/XboxOG/tud_xid/tud_xid_xremote_rom.h)
-    message(STATUS "XRemote ROM available.")
     add_definitions(-DXREMOTE_ROM_AVAILABLE)
 endif()
 
@@ -296,20 +294,10 @@ add_executable(${FW_NAME} ${SOURCES_BOARD})
 set(CONTROLLER_LD_OUT ${CMAKE_CURRENT_LIST_DIR}/memmap_controller.ld)
 pico_set_linker_script(${FW_NAME} ${CONTROLLER_LD_OUT})
 
-set(BUILD_STR "")
-
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if(OGXM_BOARD STREQUAL "PI_PICOW")
-        message(FATAL_ERROR "Debug build will not work with the Pico W currently")
-    endif()
-
-    message(STATUS "Debug build enabled.")
     set(BUILD_STR "-Debug")
-
     set(TX_PIN 0)
     set(RX_PIN 1)
-    set(UART_PORT)
-
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/get_pico_uart_port.cmake)
     get_pico_uart_port(${TX_PIN} UART_PORT)
 
@@ -324,28 +312,17 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(OGXM_DEBUG=1)
 
     target_compile_options(${FW_NAME} PRIVATE
-        -Wall
-        -Wextra
-        -Wconversion
-        -Wsign-conversion
-        -Wno-unused-parameter
+        -Wall -Wextra -Wconversion -Wsign-conversion -Wno-unused-parameter
     )
 
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     pico_enable_stdio_uart(${FW_NAME} 0)
     add_compile_definitions(CFG_TUSB_DEBUG=0)
     add_compile_options(
-        -O3
-        -mthumb
-        -ffunction-sections
-        -fdata-sections
-        -fomit-frame-pointer
-        -finline-functions
+        -O3 -mthumb -ffunction-sections -fdata-sections -fomit-frame-pointer -finline-functions
     )
-
     add_link_options(
-        -Wl,--gc-sections
-        -flto
+        -Wl,--gc-sections -flto
     )
 endif()
 
@@ -376,11 +353,7 @@ add_subdirectory(${LIBFIXMATH_PATH} libfixmath)
 target_link_libraries(${FW_NAME} PRIVATE ${LIBS_BOARD})
 
 target_compile_definitions(libfixmath PRIVATE
-    FIXMATH_FAST_SIN
-    FIXMATH_NO_64BIT
-    FIXMATH_NO_CACHE
-    FIXMATH_NO_HARD_DIVISION
-    FIXMATH_NO_OVERFLOW
+    FIXMATH_FAST_SIN FIXMATH_NO_64BIT FIXMATH_NO_CACHE FIXMATH_NO_HARD_DIVISION FIXMATH_NO_OVERFLOW
 )
 
 if(OGXM_RETAIL STREQUAL "TRUE")
