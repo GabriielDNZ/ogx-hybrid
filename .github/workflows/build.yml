@@ -192,6 +192,11 @@ jobs:
   release:
     needs: combine
     runs-on: ubuntu-latest
+    
+    # CORREÇÃO APLICADA AQUI: Permissão de escrita para criar a release
+    permissions:
+      contents: write
+      
     steps:
       - name: Download Combined UF2
         uses: actions/download-artifact@v4
